@@ -11,3 +11,4 @@ ipdb
 pre-commit
 pipdeptree
 pip-tools
+types-aiofiles
