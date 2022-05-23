@@ -1,0 +1,13 @@
+-r requirements.in
+
+bandit
+pytest
+pytest-cov
+pytest-testmon
+black
+flake8
+mypy
+ipdb
+pre-commit
+pipdeptree
+pip-tools

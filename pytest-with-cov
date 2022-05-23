@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+pytest --cov . --cov-config=setup.cfg --no-testmon $@
