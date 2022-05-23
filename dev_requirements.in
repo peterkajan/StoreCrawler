@@ -1,9 +1,11 @@
 -r requirements.in
 
+asynctest
 bandit
 pytest
 pytest-cov
 pytest-testmon
+pytest-asyncio
 black
 flake8
 mypy
