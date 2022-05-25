@@ -26,7 +26,7 @@ def setup_argument_parser() -> argparse.ArgumentParser:
         description="Extracts relevant data (emails, facebook, product info...) from domains given from input file "
         "and serializes them to CSV output file.\n"
         "Example usage:\n\n"
-        "\t./main.py data/stores_small.csv output.csv",
+        "\t./main.py example_data/stores_small.csv output.csv",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("in_file", type=str, help="Input file")

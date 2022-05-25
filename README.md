@@ -1,7 +1,25 @@
 # StoreCrawler
-Web crawler gathering store information
+Web crawler gathering store information.
 
+Script reads domains of online stores from input CSV files and list following data to output CSV file:
+- email addresses
+- facebook links
+- twitter links
+- store products' titles and images 
 
+**Note that this crawler extracts possibly sensitive data. Use them rationally, legally and ethically (a.k.a. not for SPAM ;))**
+
+## Usage
+Script can be run from commandline, e.g.:
+```
+./main.py example_data/stores_small.csv output_file.csv
+```
+For more details and/or listing configurable attributes use:
+```
+./main.py --help
+```
+
+# Development instructions
 ## Environment setup
 ### In virtual env without Docker
 * create a virtual environment
