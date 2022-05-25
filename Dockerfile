@@ -15,7 +15,7 @@ RUN apt-get -y update \
 COPY requirements.txt /app/
 WORKDIR /app
 
-# Create virtualenv and install requirements
+# Install requirements
 RUN apt-get -y --no-install-recommends install build-essential \
     && pip install \
         --no-cache-dir \

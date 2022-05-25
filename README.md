@@ -11,25 +11,22 @@ Web crawler gathering information from given online shops. Script reads domains 
 Script has to be run in proper environment. Therefore, environment must be setup prior to the usage.
 
 ### Using Docker
-First, build docker image:
+Run script using the following command:
 ```
-docker build . -t crawler
-```
-Then run command:
-
-```
-docker run -it --rm -v <data_directory>:/app/data crawler data/<input_file> data/<output_file>
+docker-compose run -it --rm crawler example_data/stores_small.csv data/output.csv
 ```
 
 Note that output directory has to be mounted as a volume. Otherwise, the result would not be accessible (-v mounts the volume), e.g.:
+
 ```
-docker run -it --rm -v $(pwd)/example_data:/app/data crawler data/stores_small.csv data/output.csv
+docker-compose run -it --rm -v $(pwd)/data2:/app/data2 crawler example_data/stores_small.csv data2/output.csv 
 ```
 
+`data` folder is mounted as volume by default. Input and output files should be kept in this folder.
 For more configuration options and further details check script's help:
 
 ```
-docker run -it --rm crawler -h
+docker-compose run -it --rm crawler -h
 ```
 
 ### In virtual env without Docker
