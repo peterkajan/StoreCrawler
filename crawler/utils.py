@@ -16,16 +16,11 @@ def negate(func: Callable) -> Callable:
 
 async def get_page(
     url: str, session: aiohttp.ClientSession, as_json=False
-) -> dict | str | None:
-    try:
-        async with session.get(url) as response:
-            logger.info("Getting page %s, response - %d", url, response.status)
-            if response.ok:
-                return await response.json() if as_json else await response.text()
-    except aiohttp.ClientConnectorError:
-        pass
-
-    return None
+) -> dict | str:
+    async with session.get(url) as response:
+        logger.info("Getting page %s, response - %d", url, response.status)
+        response.raise_for_status()
+        return await response.json() if as_json else await response.text()
 
 
 def get_url(domain: str, path: str, scheme="https") -> str:
@@ -59,13 +54,17 @@ async def get_pages(
 ) -> AsyncGenerator[str | dict, None]:
     for url in urls:
         try:
-            page = await get_page(url, session, as_json)
-            if page:
-                yield page
+            yield await get_page(url, session, as_json)
             await asyncio.sleep(throttle_delay)
-        except aiohttp.ClientConnectorError:
-            pass
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            logger.info("Getting page %s failed: %s", url, e)
 
 
 def url_to_json_url(url: str) -> str:
     return f"{url.rstrip('/')}.json"
+
+
+def is_valid_email_domain(email: str) -> bool:
+    # FIX ME: here should be more sophisticated check,
+    # e.g. by using this lib https://github.com/nexb/python-publicsuffix2
+    return not email.endswith(".png") and not email.endswith(".jpg")

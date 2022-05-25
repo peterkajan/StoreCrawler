@@ -47,3 +47,14 @@ def test_convert_to_absolute_url(link, default_domain, expected_result):
 )
 def test_url_to_json_url(url, expected_result):
     assert utils.url_to_json_url(url) == expected_result
+
+
+@pytest.mark.parametrize(
+    "email, expected_result",
+    [
+        ["jozef.hossa@sufio.com", True],
+        ["rc_widget__icon__black@2x.png", False],
+    ],
+)
+def test_is_valid_email_domain(email, expected_result):
+    assert utils.is_valid_email_domain(email) == expected_result

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from itertools import chain
 from typing import AsyncGenerator, Coroutine, cast, Iterable
@@ -60,36 +61,49 @@ def get_product_json_urls(page: str, domain: str, product_count: int) -> list[st
     ]
 
 
+def extract_emails(string: str) -> list[str]:
+    return [
+        match[0]
+        for match in email_re_pattern.findall(cast(str, string))
+        if utils.is_valid_email_domain(match[0])
+    ]
+
+
+async def get_product_data(domain: str, config: Config, session: aiohttp.ClientSession):
+    try:
+        product_list_url = utils.get_url(domain, config.product_list_path)
+        product_page = await utils.get_page(product_list_url, session)
+    except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+        logger.info("Getting products page %s failed: %s", product_list_url, e)
+        return []
+
+    product_urls = get_product_json_urls(
+        cast(str, product_page), domain, config.product_count
+    )
+
+    return list(
+        filter(
+            utils.negate(is_product_empty),
+            [
+                extract_product_data(cast(dict, product_json))
+                async for product_json in utils.get_pages(
+                    product_urls, session, config.throttle_delay, as_json=True
+                )
+            ],
+        )
+    )
+
+
 async def get_domain_data(domain: str, config: Config) -> DomainData:
     logger.info("Getting domain data for %s", domain)
     domain_data = DomainData()
     contact_urls = utils.get_urls(domain, config.contact_paths)
     async with aiohttp.ClientSession(read_timeout=HTTP_TIMEOUT) as session:
         async for page in utils.get_pages(contact_urls, session, config.throttle_delay):
-            domain_data.emails.extend(
-                [match[0] for match in email_re_pattern.findall(cast(str, page))]
-            )
+            domain_data.emails.extend(extract_emails(cast(str, page)))
             # TODO twitter, facebook
 
-        product_page = await utils.get_page(
-            utils.get_url(domain, config.product_list_path), session
-        )
-        if product_page:
-            product_urls = get_product_json_urls(
-                cast(str, product_page), domain, config.product_count
-            )
-
-            domain_data.products = list(
-                filter(
-                    utils.negate(is_product_empty),
-                    [
-                        extract_product_data(cast(dict, product_json))
-                        async for product_json in utils.get_pages(
-                            product_urls, session, config.throttle_delay, as_json=True
-                        )
-                    ],
-                )
-            )
+        domain_data.products = await get_product_data(domain, config, session)
 
     logger.debug("Got domain data for %s: %s", domain, domain_data)
     return domain_data

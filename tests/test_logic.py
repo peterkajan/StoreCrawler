@@ -16,6 +16,7 @@ from crawler.logic import (
     get_header_row,
     domain_data_to_row,
     get_product_json_urls,
+    extract_emails,
 )
 from crawler.models import Product, Config, DomainData
 from tests.utils import get_generator_mock
@@ -120,6 +121,20 @@ contact_page2 = """
         Some contact marian.gaborik@sufio.com
     </html>
 """
+
+
+@pytest.mark.parametrize(
+    "string, expected_result",
+    [
+        ["", []],
+        [
+            "slick@1.8.1 jozo.hossa@sufio.com marian.gaborik@sufio.com",
+            ["jozo.hossa@sufio.com", "marian.gaborik@sufio.com"],
+        ],
+    ],
+)
+def test_extract_emails(string, expected_result):
+    assert extract_emails(string) == expected_result
 
 
 @pytest.mark.asyncio

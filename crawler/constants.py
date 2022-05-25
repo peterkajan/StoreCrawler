@@ -13,6 +13,6 @@ DEFAULT_THROTTLE_DELAY = 1  # seconds
 
 HTTP_TIMEOUT = 5  # seconds
 
-email_re_pattern = re.compile(r"([a-zA-Z0-9._-]+@([a-zA-Z0-9_-]+\.)+[a-zA-Z0-9_-]+)")
+email_re_pattern = re.compile(r"([a-zA-Z0-9._-]+@([a-zA-Z0-9_-]+\.)+[a-zA-Z0-9_-]{2,})")
 
 OUTPUT_HEADER = ["url", "email", "facebook", "twitter"]
