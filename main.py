@@ -1,4 +1,7 @@
+#!/usr/bin/env python
+
 import asyncio
+import logging
 
 import aiofiles
 from aiocsv import AsyncWriter, AsyncReader
@@ -12,9 +15,20 @@ from crawler.constants import (
 from crawler.logic import get_domains_from_reader, store_domain_data, get_header_row
 from crawler.models import Config
 
+logger = logging.getLogger(__name__)
+
+
+def setup_logging() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[logging.StreamHandler()],
+    )
+
 
 async def main() -> None:
     # TODO load from arguments
+    setup_logging()
     input_path = "data/stores_small.csv"
     output_path = "data/output.csv"
 
@@ -24,6 +38,8 @@ async def main() -> None:
         product_count=DEFAULT_PRODUCT_COUNT,
         throttle_delay=DEFAULT_THROTTLE_DELAY,
     )
+    logger.info("Starting script with %s", config)
+
     tasks = []
     async with aiofiles.open(input_path, mode="r") as input_file:
         async with aiofiles.open(output_path, mode="w") as output_file:
@@ -35,7 +51,7 @@ async def main() -> None:
                     asyncio.create_task(store_domain_data(domain, config, writer))
                 )
 
-    await asyncio.gather(*tasks)
+            await asyncio.gather(*tasks, return_exceptions=True)
 
 
 if __name__ == "__main__":

@@ -9,7 +9,9 @@ DEFAULT_CONTACT_PATHS = [
 ]
 DEFAULT_PRODUCT_LIST_PATH = "/collections/all"
 DEFAULT_PRODUCT_COUNT = 5
-DEFAULT_THROTTLE_DELAY = 5
+DEFAULT_THROTTLE_DELAY = 1  # seconds
+
+HTTP_TIMEOUT = 5  # seconds
 
 email_re_pattern = re.compile(r"([a-zA-Z0-9._-]+@([a-zA-Z0-9_-]+\.)+[a-zA-Z0-9_-]+)")
 

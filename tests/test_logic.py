@@ -15,6 +15,7 @@ from crawler.logic import (
     get_domain_data,
     get_header_row,
     domain_data_to_row,
+    get_product_json_urls,
 )
 from crawler.models import Product, Config, DomainData
 from tests.utils import get_generator_mock
@@ -66,8 +67,29 @@ def test_extract_product_links(string, count, expected_result):
     assert extract_product_links(string, count) == expected_result
 
 
-product_dict1 = {"title": "some title", "images": ["image_link"]}
-product_dict2 = {"title": "some title2", "images": ["image_link2"]}
+@pytest.mark.parametrize(
+    "string, domain, expected_result",
+    [
+        ["", "sufio.com", []],
+        [
+            product_page,
+            "sufio.com",
+            [
+                "https://sufio.com/link1.json",
+                "https://sufio.com/link2.json",
+                "https://sufio.com/link3.json",
+            ],
+        ],
+    ],
+)
+def test_get_product_json_urls(string, domain, expected_result):
+    assert get_product_json_urls(string, domain, 3) == expected_result
+
+
+product_dict1 = {"product": {"title": "some title", "images": [{"src": "image_link"}]}}
+product_dict2 = {
+    "product": {"title": "some title2", "images": [{"src": "image_link2"}]}
+}
 
 
 @pytest.mark.parametrize(
@@ -75,7 +97,7 @@ product_dict2 = {"title": "some title2", "images": ["image_link2"]}
     [
         [{}, Product(title="", image_url="")],
         [
-            {"title": "some title", "images": []},
+            {"product": {"title": "some title", "images": []}},
             Product(title="some title", image_url=""),
         ],
         [
@@ -162,16 +184,16 @@ def test_get_header_row(product_count, expected_result):
             ),
             [
                 "sufio.com",
-                ["jozo.hossa@sufio.com", "marian.gaborik@sufio.com"],
-                ["https://facebook.com/sufio"],
-                ["http://twitter.com/sufio"],
+                "jozo.hossa@sufio.com, marian.gaborik@sufio.com",
+                "https://facebook.com/sufio",
+                "http://twitter.com/sufio",
                 "some title",
                 "image_link",
                 "some title2",
                 "image_link2",
             ],
         ],
-        [DomainData(), ["sufio.com", [], [], []]],
+        [DomainData(), ["sufio.com", "", "", ""]],
     ],
 )
 def test_domain_data_to_row(domain_data, expected_result):

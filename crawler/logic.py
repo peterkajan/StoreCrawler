@@ -1,13 +1,16 @@
+import logging
 from itertools import chain
-from typing import AsyncGenerator, Coroutine, cast
+from typing import AsyncGenerator, Coroutine, cast, Iterable
 
 import aiohttp
 from aiocsv import AsyncReader, AsyncWriter
 from bs4 import BeautifulSoup
 
 from crawler import utils
-from crawler.constants import email_re_pattern, OUTPUT_HEADER
+from crawler.constants import email_re_pattern, OUTPUT_HEADER, HTTP_TIMEOUT
 from crawler.models import Product, DomainData, is_product_empty, Config
+
+logger = logging.getLogger(__name__)
 
 
 async def get_domains_from_reader(
@@ -41,27 +44,39 @@ def extract_product_links(page: str, product_count: int) -> list[str]:
 def extract_product_data(product_dict: dict) -> Product:
     # be robust, return some default values
     try:
-        image_url = product_dict["images"][0]
+        image_url = product_dict["product"]["images"][0]["src"]
     except (IndexError, KeyError):
         image_url = ""
 
-    return Product(title=product_dict.get("title", ""), image_url=image_url)
+    return Product(
+        title=product_dict.get("product", {}).get("title", ""), image_url=image_url
+    )
+
+
+def get_product_json_urls(page: str, domain: str, product_count: int) -> list[str]:
+    return [
+        utils.url_to_json_url(utils.convert_to_absolute_url(link, domain))
+        for link in extract_product_links(cast(str, page), product_count)
+    ]
 
 
 async def get_domain_data(domain: str, config: Config) -> DomainData:
+    logger.info("Getting domain data for %s", domain)
     domain_data = DomainData()
     contact_urls = utils.get_urls(domain, config.contact_paths)
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(read_timeout=HTTP_TIMEOUT) as session:
         async for page in utils.get_pages(contact_urls, session, config.throttle_delay):
             domain_data.emails.extend(
                 [match[0] for match in email_re_pattern.findall(cast(str, page))]
             )
             # TODO twitter, facebook
 
-        product_page = await utils.get_page(domain, session, config.product_list_path)
+        product_page = await utils.get_page(
+            utils.get_url(domain, config.product_list_path), session
+        )
         if product_page:
-            product_links = extract_product_links(
-                cast(str, product_page), config.product_count
+            product_urls = get_product_json_urls(
+                cast(str, product_page), domain, config.product_count
             )
 
             domain_data.products = list(
@@ -70,12 +85,13 @@ async def get_domain_data(domain: str, config: Config) -> DomainData:
                     [
                         extract_product_data(cast(dict, product_json))
                         async for product_json in utils.get_pages(
-                            product_links, session, config.throttle_delay, as_json=True
+                            product_urls, session, config.throttle_delay, as_json=True
                         )
                     ],
                 )
             )
 
+    logger.debug("Got domain data for %s: %s", domain, domain_data)
     return domain_data
 
 
@@ -86,13 +102,17 @@ def get_header_row(product_count: int) -> chain[str]:
     )
 
 
+def list_to_cell(list_: Iterable) -> str:
+    return ", ".join(list_)
+
+
 def domain_data_to_row(domain: str, domain_data: DomainData) -> chain:
     return chain(
         [
             domain,
-            domain_data.emails,
-            domain_data.facebooks,
-            domain_data.twitters,
+            list_to_cell(domain_data.emails),
+            list_to_cell(domain_data.facebooks),
+            list_to_cell(domain_data.twitters),
         ],
         *([product.title, product.image_url] for product in domain_data.products),
     )
@@ -101,10 +121,15 @@ def domain_data_to_row(domain: str, domain_data: DomainData) -> chain:
 def serialize_domain_data(
     domain: str, domain_data: DomainData, writer: AsyncWriter
 ) -> Coroutine:
+    logger.info("Serializing domain data for %s", domain)
     return writer.writerow(domain_data_to_row(domain, domain_data))
 
 
-async def store_domain_data(
-    domain: str, config: Config, writer: AsyncWriter
-) -> Coroutine:
-    return serialize_domain_data(domain, await get_domain_data(domain, config), writer)
+async def store_domain_data(domain: str, config: Config, writer: AsyncWriter):
+    try:
+        await serialize_domain_data(
+            domain, await get_domain_data(domain, config), writer
+        )
+    except Exception as e:
+        logger.exception(e)
+        raise
