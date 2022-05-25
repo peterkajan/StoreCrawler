@@ -1,5 +1,6 @@
 import re
 
+DEFAULT_INPUT_COLUMN = "url"
 DEFAULT_CONTACT_PATHS = [
     "/",
     "/pages/about",

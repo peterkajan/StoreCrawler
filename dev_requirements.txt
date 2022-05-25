@@ -4,10 +4,6 @@
 #
 #    pip-compile dev_requirements.in
 #
-aiocsv==1.2.2
-    # via -r requirements.in
-aiofiles==0.8.0
-    # via -r requirements.in
 aiohttp==3.8.1
     # via -r requirements.in
 aiosignal==1.2.0

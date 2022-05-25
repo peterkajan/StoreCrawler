@@ -1,11 +1,11 @@
 import asyncio
+import csv
 import logging
 import re
 from itertools import chain
-from typing import AsyncGenerator, Coroutine, cast, Iterable
+from typing import cast, Iterable
 
 import aiohttp
-from aiocsv import AsyncReader, AsyncWriter
 from bs4 import BeautifulSoup
 
 from crawler import utils
@@ -21,16 +21,11 @@ from crawler.models import Product, DomainData, is_product_empty, Config
 logger = logging.getLogger(__name__)
 
 
-async def get_domains_from_reader(
-    reader: AsyncReader,
-) -> AsyncGenerator[str, None]:
-    first = True
-    async for row in reader:
-        # skip first row
-        if first:
-            first = False
-        else:
-            yield row[0]
+def read_domains(file_path: str, input_column: str) -> list[str]:
+    logger.info("Reading domain data from %s", file_path)
+    with open(file_path, mode="r") as in_file:
+        reader = csv.DictReader(in_file)
+        return [row[input_column] for row in reader]
 
 
 def extract_product_links(page: str, product_count: int) -> list[str]:
@@ -111,20 +106,28 @@ def extract_by_re_pattern(string: str, re_pattern: re.Pattern) -> set[str]:
 
 
 async def get_domain_data(domain: str, config: Config) -> DomainData:
-    logger.info("Getting domain data for %s", domain)
-    domain_data = DomainData()
-    contact_urls = utils.get_urls(domain, config.contact_paths)
-    async with aiohttp.ClientSession(read_timeout=HTTP_TIMEOUT) as session:
-        async for page in utils.get_pages(contact_urls, session, config.throttle_delay):
-            page = cast(str, page)
-            domain_data.emails |= extract_emails(page)
-            domain_data.facebooks |= extract_by_re_pattern(page, facebook_re_pattern)
-            domain_data.twitters |= extract_by_re_pattern(page, twitter_re_pattern)
+    try:
+        logger.info("Getting domain data for %s", domain)
+        domain_data = DomainData(domain)
+        contact_urls = utils.get_urls(domain, config.contact_paths)
+        async with aiohttp.ClientSession(read_timeout=HTTP_TIMEOUT) as session:
+            async for page in utils.get_pages(
+                contact_urls, session, config.throttle_delay
+            ):
+                page = cast(str, page)
+                domain_data.emails |= extract_emails(page)
+                domain_data.facebooks |= extract_by_re_pattern(
+                    page, facebook_re_pattern
+                )
+                domain_data.twitters |= extract_by_re_pattern(page, twitter_re_pattern)
 
-        domain_data.products = await get_product_data(domain, config, session)
+            domain_data.products = await get_product_data(domain, config, session)
 
-    logger.debug("Got domain data for %s: %s", domain, domain_data)
-    return domain_data
+        logger.debug("Got domain data for %s: %s", domain, domain_data)
+        return domain_data
+    except Exception as e:
+        logger.exception(e)
+        raise
 
 
 def get_header_row(product_count: int) -> chain[str]:
@@ -134,34 +137,28 @@ def get_header_row(product_count: int) -> chain[str]:
     )
 
 
-def list_to_cell(list_: Iterable) -> str:
-    return ", ".join(list_)
+def write_domain_data(
+    domain_data_list: list[DomainData], file_path: str, product_count: int
+):
+    logger.info("Writing domain data to %s", file_path)
+    with open(file_path, "w") as out_file:
+        writer = csv.writer(out_file)
+        writer.writerow(get_header_row(product_count))
+        for domain_data in domain_data_list:
+            writer.writerow(domain_data_to_row(domain_data))
 
 
-def domain_data_to_row(domain: str, domain_data: DomainData) -> chain:
+def iterable_to_cell(iterable: Iterable) -> str:
+    return ", ".join(iterable)
+
+
+def domain_data_to_row(domain_data: DomainData) -> chain:
     return chain(
         [
-            domain,
-            list_to_cell(domain_data.emails),
-            list_to_cell(domain_data.facebooks),
-            list_to_cell(domain_data.twitters),
+            domain_data.domain,
+            iterable_to_cell(domain_data.emails),
+            iterable_to_cell(domain_data.facebooks),
+            iterable_to_cell(domain_data.twitters),
         ],
         *([product.title, product.image_url] for product in domain_data.products),
     )
-
-
-def serialize_domain_data(
-    domain: str, domain_data: DomainData, writer: AsyncWriter
-) -> Coroutine:
-    logger.info("Serializing domain data for %s", domain)
-    return writer.writerow(domain_data_to_row(domain, domain_data))
-
-
-async def store_domain_data(domain: str, config: Config, writer: AsyncWriter):
-    try:
-        await serialize_domain_data(
-            domain, await get_domain_data(domain, config), writer
-        )
-    except Exception as e:
-        logger.exception(e)
-        raise

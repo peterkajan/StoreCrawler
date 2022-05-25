@@ -13,6 +13,7 @@ def is_product_empty(product: Product) -> bool:
 
 @dataclass
 class DomainData:
+    domain: str
     emails: set[str] = field(default_factory=set)
     facebooks: set[str] = field(default_factory=set)
     twitters: set[str] = field(default_factory=set)
@@ -21,6 +22,7 @@ class DomainData:
 
 @dataclass
 class Config:
+    input_column: str
     contact_paths: list[str]
     product_list_path: str
     product_count: int

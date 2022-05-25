@@ -8,11 +8,12 @@ from crawler.constants import (
     DEFAULT_THROTTLE_DELAY,
     OUTPUT_HEADER,
     facebook_re_pattern,
+    DEFAULT_INPUT_COLUMN,
 )
 from crawler.logic import (
     extract_product_links,
     extract_product_data,
-    get_domains_from_reader,
+    read_domains,
     get_domain_data,
     get_header_row,
     domain_data_to_row,
@@ -22,23 +23,6 @@ from crawler.logic import (
 )
 from crawler.models import Product, Config, DomainData
 from tests.utils import get_generator_mock
-
-
-@pytest.mark.asyncio
-async def test_get_domains_from_reader():
-    reader = get_generator_mock(
-        [
-            ["url", "something"],
-            ["dwb-online.com", "blah blah"],
-            ["lakanto-usa.myshopify.com", "bleh bleh"],
-            ["skulls-unlimited-international-inc.myshopify.com"],
-        ]
-    )
-    assert [url async for url in get_domains_from_reader(reader)] == [
-        "dwb-online.com",
-        "lakanto-usa.myshopify.com",
-        "skulls-unlimited-international-inc.myshopify.com",
-    ]
 
 
 product_page = """
@@ -159,12 +143,14 @@ async def test_get_domain_data(get_page_mock, get_pages_mock):
     assert await get_domain_data(
         "www.sufio.com",
         Config(
+            input_column=DEFAULT_INPUT_COLUMN,
             contact_paths=DEFAULT_CONTACT_PATHS,
             product_list_path=DEFAULT_PRODUCT_LIST_PATH,
             product_count=DEFAULT_PRODUCT_COUNT,
             throttle_delay=DEFAULT_THROTTLE_DELAY,
         ),
     ) == DomainData(
+        domain="www.sufio.com",
         emails={"jozo.hossa@sufio.com", "marian.gaborik@sufio.com"},
         facebooks={"https://www.facebook.com/sufio", "facebook.com/sufio2"},
         twitters={"https://twitter.com/sufio"},
@@ -196,6 +182,7 @@ def test_get_header_row(product_count, expected_result):
     [
         [
             DomainData(
+                domain="sufio.com",
                 emails={"jozo.hossa@sufio.com"},
                 facebooks={"https://facebook.com/sufio"},
                 twitters={"http://twitter.com/sufio"},
@@ -215,11 +202,11 @@ def test_get_header_row(product_count, expected_result):
                 "image_link2",
             ],
         ],
-        [DomainData(), ["sufio.com", "", "", ""]],
+        [DomainData(domain="sufio.com"), ["sufio.com", "", "", ""]],
     ],
 )
 def test_domain_data_to_row(domain_data, expected_result):
-    assert list(domain_data_to_row("sufio.com", domain_data)) == expected_result
+    assert list(domain_data_to_row(domain_data)) == expected_result
 
 
 @pytest.mark.parametrize(

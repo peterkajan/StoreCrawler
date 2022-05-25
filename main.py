@@ -3,17 +3,19 @@ import argparse
 import asyncio
 import logging
 
-import aiofiles
-from aiocsv import AsyncWriter, AsyncReader
-
 from crawler.constants import (
     DEFAULT_CONTACT_PATHS,
     DEFAULT_PRODUCT_LIST_PATH,
     DEFAULT_PRODUCT_COUNT,
     DEFAULT_THROTTLE_DELAY,
+    DEFAULT_INPUT_COLUMN,
 )
-from crawler.logic import get_domains_from_reader, store_domain_data, get_header_row
-from crawler.models import Config
+from crawler.logic import (
+    read_domains,
+    get_domain_data,
+    write_domain_data,
+)
+from crawler.models import Config, DomainData
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,13 @@ def setup_argument_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("in_file", type=str, help="Input file")
     parser.add_argument("out_file", type=str, help="Output file")
+    parser.add_argument(
+        "--input-column",
+        type=str,
+        nargs="?",
+        default=DEFAULT_INPUT_COLUMN,
+        help=f"Column in input file containing domains (default '{DEFAULT_INPUT_COLUMN}')",
+    )
     parser.add_argument(
         "--product-count",
         type=int,
@@ -67,6 +76,7 @@ async def main() -> None:
     setup_logging(logging.getLevelName(args.log))
 
     config = Config(
+        input_column=args.input_column,
         contact_paths=DEFAULT_CONTACT_PATHS,
         product_list_path=DEFAULT_PRODUCT_LIST_PATH,
         product_count=args.product_count,
@@ -74,18 +84,24 @@ async def main() -> None:
     )
     logger.info("Starting script with %s", config)
 
-    tasks = []
-    async with aiofiles.open(args.in_file, mode="r") as input_file:
-        async with aiofiles.open(args.out_file, mode="w") as output_file:
-            reader = AsyncReader(input_file)
-            writer = AsyncWriter(output_file)
-            await writer.writerow(get_header_row(config.product_count))
-            async for domain in get_domains_from_reader(reader):
-                tasks.append(
-                    asyncio.create_task(store_domain_data(domain, config, writer))
-                )
+    loop = asyncio.get_running_loop()
+    domains = await loop.run_in_executor(
+        None, read_domains, args.in_file, config.input_column
+    )
 
-            await asyncio.gather(*tasks, return_exceptions=True)
+    tasks = []
+    for domain in domains:
+        tasks.append(asyncio.create_task(get_domain_data(domain, config)))
+
+    domain_data_list = [
+        domain_data
+        for domain_data in await asyncio.gather(*tasks, return_exceptions=True)
+        if isinstance(domain_data, DomainData)
+    ]
+
+    await loop.run_in_executor(
+        None, write_domain_data, domain_data_list, args.out_file, config.product_count
+    )
 
 
 if __name__ == "__main__":
