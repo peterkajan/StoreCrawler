@@ -19,4 +19,11 @@ email_re_pattern = re.compile(r"([\w.-]+@([\w-]+\.)+[\w-]{2,})")
 facebook_re_pattern = re.compile(r"((https:\/\/)?(www\.)?facebook\.com\/[\w\.-]+)")
 twitter_re_pattern = re.compile(r"((https:\/\/)?(www\.)?twitter\.com\/[\w\.-]+)")
 
+# selectors for extracting the product links
+PRODUCT_SELECTORS = [
+    "a.grid-product__link",
+    ".product-grid-item > a",
+    ".product-item > a"
+    # TODO add more selectors to cover all known cases
+]
 OUTPUT_HEADER = ["url", "email", "facebook", "twitter"]

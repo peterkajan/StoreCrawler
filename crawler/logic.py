@@ -16,6 +16,7 @@ from crawler.constants import (
     HTTP_TIMEOUT,
     facebook_re_pattern,
     twitter_re_pattern,
+    PRODUCT_SELECTORS,
 )
 from crawler.models import Product, DomainData, is_product_empty, Config
 
@@ -46,18 +47,15 @@ def extract_product_links(page: str, product_count: int) -> list[str]:
     :return: list of product links
     """
     soup = BeautifulSoup(page, "html.parser")
-    product_list = soup.find("div", class_="product-list")
 
-    return (
-        [
-            product_link["href"]
-            for product_link in soup.select(".product-list .product-item > a")[
-                :product_count
-            ]
-        ]
-        if product_list
-        else []
-    )
+    product_link_elements = []
+    for selector in PRODUCT_SELECTORS:
+        product_link_elements = soup.select(selector)[:product_count]
+        # do not try further selectors if some products found
+        if product_link_elements:
+            break
+
+    return [product_link["href"] for product_link in product_link_elements]
 
 
 def extract_product_data(product_dict: dict) -> Product:
@@ -111,7 +109,7 @@ def extract_emails(string: str) -> set[str]:
 async def get_product_data(
     domain: str, config: Config, session: aiohttp.ClientSession
 ) -> list[Product]:
-    """ Get products attributes from given domain """
+    """Get products attributes from given domain"""
     product_list_url = utils.get_url(domain, config.product_list_path)
     try:
         product_page = await utils.get_page(product_list_url, session)
@@ -138,7 +136,7 @@ async def get_product_data(
 
 
 def extract_by_re_pattern(string: str, re_pattern: re.Pattern) -> set[str]:
-    """ Extract and deduplicate data from string by given regex """
+    """Extract and deduplicate data from string by given regex"""
     return set(normalize(match[0]) for match in re_pattern.findall(string))
 
 

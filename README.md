@@ -30,11 +30,11 @@ docker-compose run -it --rm crawler -h
 ```
 
 ### In virtual env without Docker
-* create a virtual environment
+* create a virtual environment with Python 3.10 
 * activate virtual env
 * install requirements:
 ```
-pip install -r dev_requirements.txt
+pip install -r requirements.txt
 ```
 
 Run script from commandline, e.g.:
@@ -46,9 +46,21 @@ For more configuration options and further details check script's help:
 ./main.py --help
 ```
 
+### Known issues
+Fetching of products from dynamically loaded (by AJAX) product collection pages are not handled. 
+
 # Development instructions
 Crawler's architecture is described in [docs/Architecture](docs/Architecture.md).
 
+* create a virtual environment with Python 3.10 
+* activate virtual env
+* install development requirements:
+
+```
+pip install -r dev_requirements.txt
+```
+
+To install libraries
 ## Tooling
 Install pre-commit hooks that run various checks before commit (see pre-commit-config.yaml for details)
 ```
