@@ -87,6 +87,7 @@ async def get_product_data(domain: str, config: Config, session: aiohttp.ClientS
     except (aiohttp.ClientError, asyncio.TimeoutError) as e:
         logger.info("Getting products page %s failed: %s", product_list_url, e)
         return []
+    await asyncio.sleep(config.throttle_delay)
 
     product_urls = get_product_json_urls(
         cast(str, product_page), domain, config.product_count

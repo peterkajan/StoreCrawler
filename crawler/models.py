@@ -24,4 +24,4 @@ class Config:
     contact_paths: list[str]
     product_list_path: str
     product_count: int
-    throttle_delay: int
+    throttle_delay: float

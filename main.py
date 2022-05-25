@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import argparse
 import asyncio
 import logging
 
@@ -18,6 +18,33 @@ from crawler.models import Config
 logger = logging.getLogger(__name__)
 
 
+def setup_argument_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Extracts relevant data (emails, facebook, product info...) from domains given from input file "
+        "and serializes them to CSV output file.\n"
+        "Example usage:\n\n"
+        "\t./main.py data/stores_small.csv output.csv",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("in_file", type=str, help="Input file")
+    parser.add_argument("out_file", type=str, help="Output file")
+    parser.add_argument(
+        "--product-count",
+        type=int,
+        nargs="?",
+        default=DEFAULT_PRODUCT_COUNT,
+        help=f"Number of products to be extracted (default {DEFAULT_PRODUCT_COUNT})",
+    )
+    parser.add_argument(
+        "--throttle",
+        type=float,
+        nargs="?",
+        default=DEFAULT_THROTTLE_DELAY,
+        help=f"Delay between requests to the same domain (in seconds, default {DEFAULT_THROTTLE_DELAY})",
+    )
+    return parser
+
+
 def setup_logging() -> None:
     logging.basicConfig(
         level=logging.INFO,
@@ -27,22 +54,21 @@ def setup_logging() -> None:
 
 
 async def main() -> None:
-    # TODO load from arguments
     setup_logging()
-    input_path = "data/stores_small.csv"
-    output_path = "data/output.csv"
+    parser = setup_argument_parser()
+    args = parser.parse_args()
 
     config = Config(
         contact_paths=DEFAULT_CONTACT_PATHS,
         product_list_path=DEFAULT_PRODUCT_LIST_PATH,
-        product_count=DEFAULT_PRODUCT_COUNT,
-        throttle_delay=DEFAULT_THROTTLE_DELAY,
+        product_count=args.product_count,
+        throttle_delay=args.throttle,
     )
     logger.info("Starting script with %s", config)
 
     tasks = []
-    async with aiofiles.open(input_path, mode="r") as input_file:
-        async with aiofiles.open(output_path, mode="w") as output_file:
+    async with aiofiles.open(args.in_file, mode="r") as input_file:
+        async with aiofiles.open(args.out_file, mode="w") as output_file:
             reader = AsyncReader(input_file)
             writer = AsyncWriter(output_file)
             await writer.writerow(get_header_row(config.product_count))

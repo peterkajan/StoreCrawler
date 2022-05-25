@@ -50,14 +50,18 @@ def get_urls(domain: str, paths: list[str], scheme="https") -> list[str]:
 
 
 async def get_pages(
-    urls: list[str], session: aiohttp.ClientSession, throttle_delay: int, as_json=False
+    urls: list[str],
+    session: aiohttp.ClientSession,
+    throttle_delay: float,
+    as_json=False,
 ) -> AsyncGenerator[str | dict, None]:
     for url in urls:
         try:
             yield await get_page(url, session, as_json)
-            await asyncio.sleep(throttle_delay)
         except (aiohttp.ClientError, asyncio.TimeoutError) as e:
             logger.info("Getting page %s failed: %s", url, e)
+        # throttle even if the request fails
+        await asyncio.sleep(throttle_delay)
 
 
 def url_to_json_url(url: str) -> str:
