@@ -42,21 +42,29 @@ def setup_argument_parser() -> argparse.ArgumentParser:
         default=DEFAULT_THROTTLE_DELAY,
         help=f"Delay between requests to the same domain (in seconds, default {DEFAULT_THROTTLE_DELAY})",
     )
+    parser.add_argument(
+        "--log",
+        type=str,
+        nargs="?",
+        default="INFO",
+        choices=("CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"),
+        help="Log level (default INFO)",
+    )
     return parser
 
 
-def setup_logging() -> None:
+def setup_logging(log_level) -> None:
     logging.basicConfig(
-        level=logging.INFO,
+        level=log_level,
         format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=[logging.StreamHandler()],
     )
 
 
 async def main() -> None:
-    setup_logging()
     parser = setup_argument_parser()
     args = parser.parse_args()
+    setup_logging(logging.getLevelName(args.log))
 
     config = Config(
         contact_paths=DEFAULT_CONTACT_PATHS,
