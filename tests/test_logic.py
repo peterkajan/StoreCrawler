@@ -1,4 +1,3 @@
-import aiofiles
 import pytest
 from asynctest import mock
 
@@ -7,24 +6,35 @@ from crawler.constants import (
     DEFAULT_PRODUCT_LIST_PATH,
     DEFAULT_PRODUCT_COUNT,
     DEFAULT_THROTTLE_DELAY,
+    OUTPUT_HEADER,
 )
 from crawler.logic import (
     extract_product_links,
     extract_product_data,
-    get_domains_from_stream,
+    get_domains_from_reader,
     get_domain_data,
+    get_header_row,
+    domain_data_to_row,
 )
 from crawler.models import Product, Config, DomainData
+from tests.utils import get_generator_mock
 
 
 @pytest.mark.asyncio
-async def test_get_domains_from_stream():
-    async with aiofiles.open("data/stores_small.csv", mode="r") as input_file:
-        assert [url async for url in get_domains_from_stream(input_file)] == [
-            "dwb-online.com",
-            "lakanto-usa.myshopify.com",
-            "skulls-unlimited-international-inc.myshopify.com",
+async def test_get_domains_from_reader():
+    reader = get_generator_mock(
+        [
+            ["url", "something"],
+            ["dwb-online.com", "blah blah"],
+            ["lakanto-usa.myshopify.com", "bleh bleh"],
+            ["skulls-unlimited-international-inc.myshopify.com"],
         ]
+    )
+    assert [url async for url in get_domains_from_reader(reader)] == [
+        "dwb-online.com",
+        "lakanto-usa.myshopify.com",
+        "skulls-unlimited-international-inc.myshopify.com",
+    ]
 
 
 product_page = """
@@ -90,12 +100,6 @@ contact_page2 = """
 """
 
 
-def get_generator_mock(return_value):
-    generator_mock = mock.MagicMock()
-    generator_mock.__aiter__.return_value = return_value
-    return generator_mock
-
-
 @pytest.mark.asyncio
 @mock.patch("crawler.utils.get_pages")
 @mock.patch("crawler.utils.get_page")
@@ -125,3 +129,50 @@ async def test_get_domain_data(get_page_mock, get_pages_mock):
             Product(title="some title2", image_url="image_link2"),
         ],
     )
+
+
+@pytest.mark.parametrize(
+    "product_count, expected_result",
+    [
+        [
+            3,
+            OUTPUT_HEADER
+            + ["title 1", "image 1", "title 2", "image 2", "title 3", "image 3"],
+        ],
+        [0, OUTPUT_HEADER],
+        [-1, OUTPUT_HEADER],
+    ],
+)
+def test_get_header_row(product_count, expected_result):
+    assert list(get_header_row(product_count)) == expected_result
+
+
+@pytest.mark.parametrize(
+    "domain_data, expected_result",
+    [
+        [
+            DomainData(
+                emails=["jozo.hossa@sufio.com", "marian.gaborik@sufio.com"],
+                facebooks=["https://facebook.com/sufio"],
+                twitters=["http://twitter.com/sufio"],
+                products=[
+                    Product(title="some title", image_url="image_link"),
+                    Product(title="some title2", image_url="image_link2"),
+                ],
+            ),
+            [
+                "sufio.com",
+                ["jozo.hossa@sufio.com", "marian.gaborik@sufio.com"],
+                ["https://facebook.com/sufio"],
+                ["http://twitter.com/sufio"],
+                "some title",
+                "image_link",
+                "some title2",
+                "image_link2",
+            ],
+        ],
+        [DomainData(), ["sufio.com", [], [], []]],
+    ],
+)
+def test_domain_data_to_row(domain_data, expected_result):
+    assert list(domain_data_to_row("sufio.com", domain_data)) == expected_result

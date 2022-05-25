@@ -1,12 +1,13 @@
 import asyncio
 import operator
+from typing import AsyncGenerator, Callable
 from urllib.parse import urlunparse, ParseResult
 
 import aiohttp
 import funcy
 
 
-def negate(func):
+def negate(func: Callable) -> Callable:
     return funcy.compose(operator.not_, func)
 
 
@@ -25,7 +26,7 @@ async def get_page(
     return None
 
 
-def get_urls(domain, paths):
+def get_urls(domain: str, paths: list[str]) -> list[str]:
     return [
         urlunparse(
             ParseResult(
@@ -41,13 +42,14 @@ def get_urls(domain, paths):
     ]
 
 
-async def get_pages(urls: list[str], throttle_delay: int, as_json=False):
-    async with aiohttp.ClientSession() as session:
-        for url in urls:
-            try:
-                page = await get_page(url, session, as_json)
-                if page:
-                    yield page
-                await asyncio.sleep(throttle_delay)
-            except aiohttp.ClientConnectorError:
-                pass
+async def get_pages(
+    urls: list[str], session: aiohttp.ClientSession, throttle_delay: int, as_json=False
+) -> AsyncGenerator[str | dict, None]:
+    for url in urls:
+        try:
+            page = await get_page(url, session, as_json)
+            if page:
+                yield page
+            await asyncio.sleep(throttle_delay)
+        except aiohttp.ClientConnectorError:
+            pass

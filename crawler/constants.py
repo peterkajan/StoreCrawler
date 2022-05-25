@@ -12,3 +12,5 @@ DEFAULT_PRODUCT_COUNT = 5
 DEFAULT_THROTTLE_DELAY = 5
 
 email_re_pattern = re.compile(r"([a-zA-Z0-9._-]+@([a-zA-Z0-9_-]+\.)+[a-zA-Z0-9_-]+)")
+
+OUTPUT_HEADER = ["url", "email", "facebook", "twitter"]

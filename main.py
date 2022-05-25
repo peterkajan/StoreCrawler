@@ -1,6 +1,7 @@
 import asyncio
 
 import aiofiles
+from aiocsv import AsyncWriter, AsyncReader
 
 from crawler.constants import (
     DEFAULT_CONTACT_PATHS,
@@ -8,13 +9,15 @@ from crawler.constants import (
     DEFAULT_PRODUCT_COUNT,
     DEFAULT_THROTTLE_DELAY,
 )
-from crawler.logic import get_domains_from_stream, store_domain_data
+from crawler.logic import get_domains_from_reader, store_domain_data, get_header_row
 from crawler.models import Config
 
 
 async def main() -> None:
     # TODO load from arguments
     input_path = "data/stores_small.csv"
+    output_path = "data/output.csv"
+
     config = Config(
         contact_paths=DEFAULT_CONTACT_PATHS,
         product_list_path=DEFAULT_PRODUCT_LIST_PATH,
@@ -23,8 +26,14 @@ async def main() -> None:
     )
     tasks = []
     async with aiofiles.open(input_path, mode="r") as input_file:
-        async for domain in get_domains_from_stream(input_file):
-            tasks.append(asyncio.create_task(store_domain_data(domain, config)))
+        async with aiofiles.open(output_path, mode="w") as output_file:
+            reader = AsyncReader(input_file)
+            writer = AsyncWriter(output_file)
+            await writer.writerow(get_header_row(config.product_count))
+            async for domain in get_domains_from_reader(reader):
+                tasks.append(
+                    asyncio.create_task(store_domain_data(domain, config, writer))
+                )
 
     await asyncio.gather(*tasks)
 
