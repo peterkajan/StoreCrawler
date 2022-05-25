@@ -7,6 +7,7 @@ from crawler.constants import (
     DEFAULT_PRODUCT_COUNT,
     DEFAULT_THROTTLE_DELAY,
     OUTPUT_HEADER,
+    facebook_re_pattern,
 )
 from crawler.logic import (
     extract_product_links,
@@ -17,6 +18,7 @@ from crawler.logic import (
     domain_data_to_row,
     get_product_json_urls,
     extract_emails,
+    extract_by_re_pattern,
 )
 from crawler.models import Product, Config, DomainData
 from tests.utils import get_generator_mock
@@ -114,11 +116,14 @@ def test_extract_product_data(product_dict, expected_result):
 contact_page1 = """
     <html>
         Some contact jozo.hossa@sufio.com
+        Facebook https://www.facebook.com/Sufio
     </html>
 """
 contact_page2 = """
     <html>
         Some contact marian.gaborik@sufio.com
+        Twitter https://twitter.com/sufio
+        Facebook facebook.com/Sufio2
     </html>
 """
 
@@ -126,10 +131,10 @@ contact_page2 = """
 @pytest.mark.parametrize(
     "string, expected_result",
     [
-        ["", []],
+        ["", set()],
         [
             "slick@1.8.1 jozo.hossa@sufio.com marian.gaborik@sufio.com",
-            ["jozo.hossa@sufio.com", "marian.gaborik@sufio.com"],
+            {"jozo.hossa@sufio.com", "marian.gaborik@sufio.com"},
         ],
     ],
 )
@@ -160,7 +165,9 @@ async def test_get_domain_data(get_page_mock, get_pages_mock):
             throttle_delay=DEFAULT_THROTTLE_DELAY,
         ),
     ) == DomainData(
-        emails=["jozo.hossa@sufio.com", "marian.gaborik@sufio.com"],
+        emails={"jozo.hossa@sufio.com", "marian.gaborik@sufio.com"},
+        facebooks={"https://www.facebook.com/sufio", "facebook.com/sufio2"},
+        twitters={"https://twitter.com/sufio"},
         products=[
             Product(title="some title", image_url="image_link"),
             Product(title="some title2", image_url="image_link2"),
@@ -189,9 +196,9 @@ def test_get_header_row(product_count, expected_result):
     [
         [
             DomainData(
-                emails=["jozo.hossa@sufio.com", "marian.gaborik@sufio.com"],
-                facebooks=["https://facebook.com/sufio"],
-                twitters=["http://twitter.com/sufio"],
+                emails={"jozo.hossa@sufio.com"},
+                facebooks={"https://facebook.com/sufio"},
+                twitters={"http://twitter.com/sufio"},
                 products=[
                     Product(title="some title", image_url="image_link"),
                     Product(title="some title2", image_url="image_link2"),
@@ -199,7 +206,7 @@ def test_get_header_row(product_count, expected_result):
             ),
             [
                 "sufio.com",
-                "jozo.hossa@sufio.com, marian.gaborik@sufio.com",
+                "jozo.hossa@sufio.com",
                 "https://facebook.com/sufio",
                 "http://twitter.com/sufio",
                 "some title",
@@ -213,3 +220,18 @@ def test_get_header_row(product_count, expected_result):
 )
 def test_domain_data_to_row(domain_data, expected_result):
     assert list(domain_data_to_row("sufio.com", domain_data)) == expected_result
+
+
+@pytest.mark.parametrize(
+    "string, expected_result",
+    [
+        [contact_page1, {"https://www.facebook.com/sufio"}],
+        ["", set()],
+        [
+            "facebook.com/Sufio www.facebook.com/Sufio2",
+            {"facebook.com/sufio", "www.facebook.com/sufio2"},
+        ],
+    ],
+)
+def test_extract_facebook(string, expected_result):
+    assert extract_by_re_pattern(string, facebook_re_pattern) == expected_result

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from itertools import chain
 from typing import AsyncGenerator, Coroutine, cast, Iterable
 
@@ -8,7 +9,13 @@ from aiocsv import AsyncReader, AsyncWriter
 from bs4 import BeautifulSoup
 
 from crawler import utils
-from crawler.constants import email_re_pattern, OUTPUT_HEADER, HTTP_TIMEOUT
+from crawler.constants import (
+    email_re_pattern,
+    OUTPUT_HEADER,
+    HTTP_TIMEOUT,
+    facebook_re_pattern,
+    twitter_re_pattern,
+)
 from crawler.models import Product, DomainData, is_product_empty, Config
 
 logger = logging.getLogger(__name__)
@@ -61,12 +68,16 @@ def get_product_json_urls(page: str, domain: str, product_count: int) -> list[st
     ]
 
 
-def extract_emails(string: str) -> list[str]:
-    return [
-        match[0]
+def normalize(string: str) -> str:
+    return string.lower()
+
+
+def extract_emails(string: str) -> set[str]:
+    return set(
+        normalize(match[0])
         for match in email_re_pattern.findall(cast(str, string))
         if utils.is_valid_email_domain(match[0])
-    ]
+    )
 
 
 async def get_product_data(domain: str, config: Config, session: aiohttp.ClientSession):
@@ -94,14 +105,20 @@ async def get_product_data(domain: str, config: Config, session: aiohttp.ClientS
     )
 
 
+def extract_by_re_pattern(string: str, re_pattern: re.Pattern) -> set[str]:
+    return set(normalize(match[0]) for match in re_pattern.findall(string))
+
+
 async def get_domain_data(domain: str, config: Config) -> DomainData:
     logger.info("Getting domain data for %s", domain)
     domain_data = DomainData()
     contact_urls = utils.get_urls(domain, config.contact_paths)
     async with aiohttp.ClientSession(read_timeout=HTTP_TIMEOUT) as session:
         async for page in utils.get_pages(contact_urls, session, config.throttle_delay):
-            domain_data.emails.extend(extract_emails(cast(str, page)))
-            # TODO twitter, facebook
+            page = cast(str, page)
+            domain_data.emails |= extract_emails(page)
+            domain_data.facebooks |= extract_by_re_pattern(page, facebook_re_pattern)
+            domain_data.twitters |= extract_by_re_pattern(page, twitter_re_pattern)
 
         domain_data.products = await get_product_data(domain, config, session)
 

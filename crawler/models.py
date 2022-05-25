@@ -13,9 +13,9 @@ def is_product_empty(product: Product) -> bool:
 
 @dataclass
 class DomainData:
-    emails: list[str] = field(default_factory=list)
-    facebooks: list[str] = field(default_factory=list)
-    twitters: list[str] = field(default_factory=list)
+    emails: set[str] = field(default_factory=set)
+    facebooks: set[str] = field(default_factory=set)
+    twitters: set[str] = field(default_factory=set)
     products: list[Product] = field(default_factory=list)
 
 
