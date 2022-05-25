@@ -1,0 +1,17 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+autonumber
+
+main -> logic: read_domains(input_file)
+logic --> main
+
+main -> event_loop: run_tasks_concurently(domains)
+event_loop -> logic: get_domain_data(domain)
+logic -> logic: get_product_data(domain)
+logic --> event_loop
+event_loop --> main: gather results
+
+
+main -> logic: write_domain_data(output_file)
+logic --> main
+@enduml
