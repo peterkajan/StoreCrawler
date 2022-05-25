@@ -1,3 +1,4 @@
+""" Module containing business logic """
 import asyncio
 import csv
 import logging
@@ -22,6 +23,13 @@ logger = logging.getLogger(__name__)
 
 
 def read_domains(file_path: str, input_column: str) -> list[str]:
+    """
+    Read domains from CSV file
+    :param file_path: path to file
+    :param input_column: header (column name) of column containing domains
+
+    :return: list of domains
+    """
     logger.info("Reading domain data from %s", file_path)
     with open(file_path, mode="r") as in_file:
         reader = csv.DictReader(in_file)
@@ -29,6 +37,14 @@ def read_domains(file_path: str, input_column: str) -> list[str]:
 
 
 def extract_product_links(page: str, product_count: int) -> list[str]:
+    """
+    Extract links to products from HTML page
+
+    :param page: HTML page
+    :param product_count: Number of product links to be extracted
+
+    :return: list of product links
+    """
     soup = BeautifulSoup(page, "html.parser")
     product_list = soup.find("div", class_="product-list")
 
@@ -45,6 +61,12 @@ def extract_product_links(page: str, product_count: int) -> list[str]:
 
 
 def extract_product_data(product_dict: dict) -> Product:
+    """
+    Get needed attributes from product json
+
+    :param product_dict: product JSON
+    :return: Product model containing needed attributes (or defaults in case that the attribute is not found)
+    """
     # be robust, return some default values
     try:
         image_url = product_dict["product"]["images"][0]["src"]
@@ -57,6 +79,15 @@ def extract_product_data(product_dict: dict) -> Product:
 
 
 def get_product_json_urls(page: str, domain: str, product_count: int) -> list[str]:
+    """
+    Get urls from given page to products' data in json
+
+    :param page: HTML page
+    :param domain: domain of the page
+    :param product_count: Number of product links to be extracted
+
+    :return: list of URLs to products' JSONs
+    """
     return [
         utils.url_to_json_url(utils.convert_to_absolute_url(link, domain))
         for link in extract_product_links(cast(str, page), product_count)
@@ -64,10 +95,12 @@ def get_product_json_urls(page: str, domain: str, product_count: int) -> list[st
 
 
 def normalize(string: str) -> str:
+    """Normalize string to be able to identify duplicates."""
     return string.lower()
 
 
 def extract_emails(string: str) -> set[str]:
+    """Extract emails from string. Note that duplicates are removed."""
     return set(
         normalize(match[0])
         for match in email_re_pattern.findall(cast(str, string))
@@ -75,9 +108,12 @@ def extract_emails(string: str) -> set[str]:
     )
 
 
-async def get_product_data(domain: str, config: Config, session: aiohttp.ClientSession):
+async def get_product_data(
+    domain: str, config: Config, session: aiohttp.ClientSession
+) -> list[Product]:
+    """ Get products attributes from given domain """
+    product_list_url = utils.get_url(domain, config.product_list_path)
     try:
-        product_list_url = utils.get_url(domain, config.product_list_path)
         product_page = await utils.get_page(product_list_url, session)
     except (aiohttp.ClientError, asyncio.TimeoutError) as e:
         logger.info("Getting products page %s failed: %s", product_list_url, e)
@@ -102,10 +138,18 @@ async def get_product_data(domain: str, config: Config, session: aiohttp.ClientS
 
 
 def extract_by_re_pattern(string: str, re_pattern: re.Pattern) -> set[str]:
+    """ Extract and deduplicate data from string by given regex """
     return set(normalize(match[0]) for match in re_pattern.findall(string))
 
 
 async def get_domain_data(domain: str, config: Config) -> DomainData:
+    """
+    Get relevant data for given domain.
+
+    :param domain: web domain, e.g. sufio.com
+    :param config: configuration object, see model.Config
+    :return: relevant data from given domain, see model.Domain
+    """
     try:
         logger.info("Getting domain data for %s", domain)
         domain_data = DomainData(domain)
@@ -131,21 +175,11 @@ async def get_domain_data(domain: str, config: Config) -> DomainData:
 
 
 def get_header_row(product_count: int) -> chain[str]:
+    """Return header row of output file"""
     return chain(
         OUTPUT_HEADER,
         *([f"title {i}", f"image {i}"] for i in range(1, product_count + 1)),
     )
-
-
-def write_domain_data(
-    domain_data_list: list[DomainData], file_path: str, product_count: int
-):
-    logger.info("Writing domain data to %s", file_path)
-    with open(file_path, "w") as out_file:
-        writer = csv.writer(out_file)
-        writer.writerow(get_header_row(product_count))
-        for domain_data in domain_data_list:
-            writer.writerow(domain_data_to_row(domain_data))
 
 
 def iterable_to_cell(iterable: Iterable) -> str:
@@ -162,3 +196,21 @@ def domain_data_to_row(domain_data: DomainData) -> chain:
         ],
         *([product.title, product.image_url] for product in domain_data.products),
     )
+
+
+def write_domain_data(
+    domain_data_list: list[DomainData], file_path: str, product_count: int
+):
+    """
+    Serialize data to output CSV file
+
+    :param domain_data_list: list of domains' data
+    :param file_path: output file path
+    :param product_count: number of products to be listed in header
+    """
+    logger.info("Writing domain data to %s", file_path)
+    with open(file_path, "w") as out_file:
+        writer = csv.writer(out_file)
+        writer.writerow(get_header_row(product_count))
+        for domain_data in domain_data_list:
+            writer.writerow(domain_data_to_row(domain_data))

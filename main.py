@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 def setup_argument_parser() -> argparse.ArgumentParser:
+    """Setup parsing of script's console arguments"""
     parser = argparse.ArgumentParser(
         description="Extracts relevant data (emails, facebook, product info...) from domains given from input file "
         "and serializes them to CSV output file.\n"
@@ -62,7 +63,7 @@ def setup_argument_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def setup_logging(log_level) -> None:
+def setup_logging(log_level: int) -> None:
     logging.basicConfig(
         level=log_level,
         format="%(asctime)s [%(levelname)s] %(message)s",
@@ -84,11 +85,14 @@ async def main() -> None:
     )
     logger.info("Starting script with %s", config)
 
+    # read domains from input file
+    # file is read synchronously, therefore run it in executor
     loop = asyncio.get_running_loop()
     domains = await loop.run_in_executor(
         None, read_domains, args.in_file, config.input_column
     )
 
+    # concurrently get data for each domain
     tasks = []
     for domain in domains:
         tasks.append(asyncio.create_task(get_domain_data(domain, config)))
@@ -99,6 +103,8 @@ async def main() -> None:
         if isinstance(domain_data, DomainData)
     ]
 
+    # output data to file
+    # writing is done synchronously, therefore run it in executor
     await loop.run_in_executor(
         None, write_domain_data, domain_data_list, args.out_file, config.product_count
     )
