@@ -1,7 +1,5 @@
 # StoreCrawler
-Web crawler gathering store information.
-
-Script reads domains of online stores from input CSV files and list following data to output CSV file:
+Web crawler gathering information from given online shops. Script reads domains of online stores from input CSV files and list following data to output CSV file:
 - email addresses
 - facebook links
 - twitter links
@@ -13,7 +11,7 @@ Script reads domains of online stores from input CSV files and list following da
 Script has to be run in proper environment. Therefore, environment must be setup prior to the usage.
 
 ### Using Docker
-First build docker image:
+First, build docker image:
 ```
 docker build . -t crawler
 ```
@@ -23,12 +21,12 @@ Then run command:
 docker run -it --rm -v <data_directory>:/app/data crawler data/<input_file> data/<output_file>
 ```
 
-Note that output directory has to be in mounted in order to see the output (-v mounts the volume), e.g.:
+Note that output directory has to be mounted as a volume. Otherwise, the result would not be accessible (-v mounts the volume), e.g.:
 ```
 docker run -it --rm -v $(pwd)/example_data:/app/data crawler data/stores_small.csv data/output.csv
 ```
 
-For more details and/or listing configurable attributes use of crawler script run:
+For more configuration options and further details check script's help:
 
 ```
 docker run -it --rm crawler -h
@@ -37,24 +35,25 @@ docker run -it --rm crawler -h
 ### In virtual env without Docker
 * create a virtual environment
 * activate virtual env
-
-* install requirements
+* install requirements:
 ```
 pip install -r dev_requirements.txt
 ```
 
-Script can be then run from commandline, e.g.:
+Run script from commandline, e.g.:
 ```
 ./main.py example_data/stores_small.csv output_file.csv
 ```
-For more details and/or listing configurable attributes use:
+For more configuration options and further details check script's help:
 ```
 ./main.py --help
 ```
 
 # Development instructions
+Crawler's architecture is described in [docs/Architecture](docs/Architecture.md).
+
 ## Tooling
-Install precommit hooks that run various checks before commit (see pre-commit-config.yaml for details)
+Install pre-commit hooks that run various checks before commit (see pre-commit-config.yaml for details)
 ```
 pre-commit install
 ```
