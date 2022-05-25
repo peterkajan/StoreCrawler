@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 def setup_argument_parser() -> argparse.ArgumentParser:
     """Setup parsing of script's console arguments"""
     parser = argparse.ArgumentParser(
-        description="Extracts relevant data (emails, facebook, product info...) from domains given from input file "
+        description="Extracts relevant data (emails, facebook, product info...) from domains read from input file "
         "and serializes them to CSV output file.\n"
         "Example usage:\n\n"
         "\t./main.py example_data/stores_small.csv output.csv",

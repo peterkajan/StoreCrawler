@@ -10,17 +10,30 @@ Script reads domains of online stores from input CSV files and list following da
 **Note that this crawler extracts possibly sensitive data. Use them rationally, legally and ethically (a.k.a. not for SPAM ;))**
 
 ## Usage
-Script can be run from commandline, e.g.:
+Script has to be run in proper environment. Therefore, environment must be setup prior to the usage.
+
+### Using Docker
+First build docker image:
 ```
-./main.py example_data/stores_small.csv output_file.csv
+docker build . -t crawler
 ```
-For more details and/or listing configurable attributes use:
+Then run command:
+
 ```
-./main.py --help
+docker run -it --rm -v <data_directory>:/app/data crawler data/<input_file> data/<output_file>
 ```
 
-# Development instructions
-## Environment setup
+Note that output directory has to be in mounted in order to see the output (-v mounts the volume), e.g.:
+```
+docker run -it --rm -v $(pwd)/example_data:/app/data crawler data/stores_small.csv data/output.csv
+```
+
+For more details and/or listing configurable attributes use of crawler script run:
+
+```
+docker run -it --rm crawler -h
+```
+
 ### In virtual env without Docker
 * create a virtual environment
 * activate virtual env
@@ -30,8 +43,18 @@ For more details and/or listing configurable attributes use:
 pip install -r dev_requirements.txt
 ```
 
+Script can be then run from commandline, e.g.:
+```
+./main.py example_data/stores_small.csv output_file.csv
+```
+For more details and/or listing configurable attributes use:
+```
+./main.py --help
+```
+
+# Development instructions
 ## Tooling
-Install precommit hooks that run various checks before commit
+Install precommit hooks that run various checks before commit (see pre-commit-config.yaml for details)
 ```
 pre-commit install
 ```
@@ -57,6 +80,10 @@ mypy .
 Run code formatting
 ```
 black .
+```
+Check for security issues:
+```
+bandit .
 ```
 
 ## Updating dependencies
